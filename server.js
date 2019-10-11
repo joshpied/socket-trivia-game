@@ -3,7 +3,6 @@ const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 
 app.get('/student', (req, res) => {
-  // res.send('<h1>Hello world</h1>');
   res.sendFile(__dirname + '/student.html');
 });
 
@@ -17,7 +16,12 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log('user disconnected');
   });
+
+  socket.on('question submitted', (form) => {
+    io.emit('question submitted', form);
+  });
 });
+
 
 http.listen(3000, () => {
   console.log('listening on localhost:3000');

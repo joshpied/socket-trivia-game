@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <title>Socket.IO chat</title>
+  <title>Socket Trivia - Teacher</title>
   <script src="/socket.io/socket.io.js"></script>
   <link rel="stylesheet" href="https://unpkg.com/tailwindcss/dist/tailwind.min.css"/>
   <style>
@@ -25,8 +25,10 @@
   </div>
 </nav>
 <!--<div class="max-w-sm mx-auto flex p-6 bg-white rounded-lg shadow-xl">-->
-<div class="w-full max-w-xs">
-  <form class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+<!--<div class="w-full max-w-xs">-->
+<div class="container mx-auto w-full max-w-xl">
+  <!-----------------  1 --------------------->
+  <form id="questionFormContainer" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
     <!--      TIME LIMIT RANGER SLIDER-->
     <div class="mb-4">
       <label class="block text-gray-700 text-sm font-bold mb-2" for="timelimit">
@@ -59,74 +61,190 @@
 
     <!--MULTIPLE CHOICE FORM-->
     <div id="multipleChoiceSelected" class="mt-4">
+      <!--QUESTION-->
       <div class="mb-4">
         <label class="block text-gray-700 text-sm font-bold mb-2" for="question">
           Question
         </label>
-        <textarea id="question" class="w-full rounded shadow-inner p-4 border-0 focus:outline-none focus:shadow-outline" placeholder="Which of these items are considered fruit?" rows="6"></textarea>
+        <textarea id="question" class="w-full rounded shadow-inner p-4 border-0 focus:outline-none focus:shadow-outline"
+                  placeholder="Which of these items are considered fruit?" rows="6"></textarea>
       </div>
-      <div class="mb-4">
-        <label for="hasMultipleRightAnswers"> Multiple Right Answers?</label>
-        <input type="checkbox" name="hasMultipleRightAnswers" id="hasMultipleRightAnswers" value="multipleRightAnswers">
+      <!--      <div class="mb-4">-->
+      <!--        <label for="hasMultipleRightAnswers"> Multiple Right Answers?</label>-->
+      <!--        <input type="checkbox" name="hasMultipleRightAnswers" id="hasMultipleRightAnswers" value="multipleRightAnswers">-->
+      <!--      </div>-->
+      <!--ANSWERS-->
+      <div class="flex flex-wrap -mx-3 mb-6">
+        <div class="w-full md:w-1/2 px-3" id="answerInputColumn">
+          <label class="block text-gray-700 text-xs font-bold mb-2">
+            Answers
+          </label>
+          <input class="answer-input appearance-none block w-full bg-gray-200 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                 type="text" placeholder="Apple">
+        </div>
+        <div class="w-full md:w-1/2 px-3" id="answerCheckboxColumn">
+          <label class="block text-gray-700 text-xs font-bold mb-2">
+            Correct Answer?
+          </label>
+          <input type="checkbox" class="answer-checkbox">
+        </div>
+        <div class="w-full px-3 mt-3">
+          <button class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                  type="button"
+                  onclick="addAnswer()">
+            + Add Answer
+          </button>
+        </div>
       </div>
     </div>
     <!--MATCHING FORM-->
     <div id="matchingSelected" style="display: none;">
-      matching
-    </div>
+      <div class="flex flex-wrap -mx-3 mb-6">
+        <div class="w-full md:w-1/2 px-3" id="answerMatchingColumn">
+          <label class="block text-gray-700 text-xs font-bold mb-2">
+            Answers
+          </label>
 
-    <!--ANSWERS-->
-    <div class="flex flex-wrap -mx-3 mb-6">
-      <div class="w-full md:w-1/2 px-3" id="answerColumn">
-        <label class="block text-gray-700 text-xs font-bold mb-2">
-          Answers
-        </label>
-        <input class="appearance-none block w-full bg-gray-200 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500" type="text" placeholder="Doe">
-      </div>
-      <div class="w-full md:w-1/2 px-3" id="correctColumn">
-        <label class="block text-gray-700 text-xs font-bold mb-2">
-          Corect?
-        </label>
-        <input type="checkbox">
+          <div class="md:flex mb-4">
+            <input class="matching-question-input bg-gray-200 text-gray-700 border border-gray-200 rounded py-3 px-4 mr-5 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                   type="text" placeholder="Apple">
+            <input class="matching-answer-input bg-gray-200 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                   type="text" placeholder="Red">
+          </div>
+        </div>
+        <div class="w-full px-3">
+          <button class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                  type="button"
+                  onclick="addMatchingQuestion()">
+            + Add Matching Question/Answer
+          </button>
+        </div>
       </div>
     </div>
 
     <div class="flex items-center justify-between mt-4">
-      <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+      <button onclick="onSubmit()"
+              class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
               type="button">
         Submit Question
       </button>
     </div>
   </form>
+
+  <div id="roundInProgressContainer" style="display: none">
+    <h1 class="text-3xl">Game on!!</h1>
+  </div>
 </div>
 <script>
   const socket = io();
 
-</script>
-<script>
-  const slider = document.getElementById("timelimit");
-  const sliderOutput = document.getElementById("sliderOutput");
+  const $ = document.querySelector.bind(document);
+  const $$ = document.querySelectorAll.bind(document);
+
+  // Containers for different parts of the game
+  const
+    questionForm = $('#questionFormContainer'),
+    roundInProgress = $('#roundInProgressContainer');
+
+  // Form values to be used
+  const slider = $('#timelimit');
+  const scoreAmount = $('#scoreAmount');
+  let formType = 'multiple choice';
+
+  const sliderOutput = $('#sliderOutput');
   sliderOutput.innerHTML = slider.value;
   slider.oninput = function () {
     sliderOutput.innerHTML = this.value;
   };
 
   const
-    multipleChoiceForm = document.getElementById('multipleChoiceSelected'),
-    matchingForm = document.getElementById('matchingSelected');
+    multipleChoiceForm = $('#multipleChoiceSelected'),
+    matchingForm = $('#matchingSelected');
 
   function handleQuestionType(e) {
     console.log(e.value);
     if (e.value === 'matching') {
       matchingForm.style.display = 'block';
       multipleChoiceForm.style.display = 'none';
+      formType = 'matching';
     } else if (e.value === 'multiple_choice') {
       multipleChoiceForm.style.display = 'block';
       matchingForm.style.display = 'none';
+      formType = 'multiple choice';
     }
   }
 
+  function addAnswer() {
+    const answerInput = `<br/><input class="answer-input appearance-none block w-full bg-gray-200 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                          type="text" placeholder="Apple">`;
+    const answerCheckbox = `<br/><br/><br/> <input type="checkbox" class="answer-checkbox">`;
+    $('#answerInputColumn').insertAdjacentHTML('beforeend', answerInput);
+    $('#answerCheckboxColumn').insertAdjacentHTML('beforeend', answerCheckbox);
+  }
 
+  function addMatchingQuestion() {
+    const questionAnswerInput = `<div class="md:flex mb-4">
+                                    <input class="matching-question-input bg-gray-200 text-gray-700 border border-gray-200 rounded py-3 px-4 mr-5 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                                           type="text" placeholder="Apple">
+                                    <input class="matching-answer-input bg-gray-200 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                                           type="text" placeholder="Red">
+                                  </div>`;
+    $('#answerMatchingColumn').insertAdjacentHTML('beforeend', questionAnswerInput);
+  }
+
+  function onSubmit() {
+    let
+      game = {},
+      answers = [],
+      corrections = [],
+      questions = [];
+    if (formType === 'multiple choice') {
+      $$('.answer-input').forEach(input => answers.push(input.value));
+      $$('.answer-checkbox').forEach(input => corrections.push(input.checked));
+      const reducedAnswers = corrections.reduce(function (result, field, index) {
+        result[answers[index]] = field;
+        return result;
+      }, {});
+      game = {question: $('#question').value, answers: reducedAnswers};
+    } else if (formType === 'matching') {
+      $$('.matching-question-input').forEach(input => questions.push(input.value));
+      $$('.matching-answer-input').forEach(input => answers.push(input.value));
+      game = {questions, answers};
+    }
+
+    const form = {
+      timeLimit: parseInt(slider.value),
+      scoreAmount: parseInt(scoreAmount.value),
+      formType,
+      game
+    };
+    socket.emit('question submitted', JSON.stringify(form));
+    socket.on('question submitted', (data) => {
+      console.log(data);
+    });
+    resetForm();
+  }
+
+  function resetForm() {
+    $('#answerInputColumn').innerHTML = `<input class="answer-input appearance-none block w-full bg-gray-200 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                          type="text" placeholder="Apple">`;
+    $('#answerCheckboxColumn').innerHTML = `<input type="checkbox" class="answer-checkbox">`;
+    $('#answerMatchingColumn').innerHTML = `<div class="md:flex mb-4">
+                                            <input class="matching-question-input bg-gray-200 text-gray-700 border border-gray-200 rounded py-3 px-4 mr-5 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                                                   type="text" placeholder="Apple">
+                                            <input class="matching-answer-input bg-gray-200 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
+                                                   type="text" placeholder="Red">
+                                          </div>`;
+    formType = 'multiple choice';
+    scoreAmount.value = null;
+    $('#question').value = '';
+  }
+
+  function startRound(data) {
+    console.log(data);
+    questionForm.style.display = 'none';
+    roundInProgress.style.display = 'block';
+  }
 </script>
 </body>
 </html>
