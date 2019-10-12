@@ -17,6 +17,10 @@ io.on('connection', (socket) => {
     console.log('user disconnected');
   });
 
+  socket.on('student entered', (username) => {
+    io.emit('student entered', username);
+  });
+
   socket.on('question submitted', (form) => {
     io.emit('question submitted', form);
   });

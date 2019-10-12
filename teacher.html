@@ -132,7 +132,7 @@
   </form>
 
   <div id="roundInProgressContainer" style="display: none">
-    <h1 class="text-3xl">Game on!!</h1>
+    <h1 class="text-3xl" id="gameClock"></h1>
   </div>
 </div>
 <script>
@@ -140,6 +140,10 @@
 
   const $ = document.querySelector.bind(document);
   const $$ = document.querySelectorAll.bind(document);
+
+  let
+    students = [],
+    submittedGame= {};
 
   // Containers for different parts of the game
   const
@@ -220,7 +224,8 @@
     };
     socket.emit('question submitted', JSON.stringify(form));
     socket.on('question submitted', (data) => {
-      console.log(data);
+      // console.log(data);
+      startRound(JSON.parse(data));
     });
     resetForm();
   }
@@ -242,9 +247,23 @@
 
   function startRound(data) {
     console.log(data);
+    submittedGame = data;
     questionForm.style.display = 'none';
     roundInProgress.style.display = 'block';
+    let secondsRemaining = submittedGame.timeLimit;
+    $('#gameClock').innerText = secondsRemaining;
+    for (let i = secondsRemaining; i > -1; i--) {
+      setTimeout(() => {
+        $('#gameClock').innerText = secondsRemaining;
+        secondsRemaining--;
+      }, 1000);
+    }
   }
+
+  socket.on('student entered', (studentUsername) => {
+    students.push({name: studentUsername, score: 0});
+    console.log(students);
+  });
 </script>
 </body>
 </html>

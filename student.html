@@ -36,6 +36,10 @@
   </div>
 </nav>
 <div class="container mx-auto w-full max-w-xl">
+  <!--0: when user didnt submit name in time and the game's started they see this message-->
+  <div id="userNotInGameContainer" style="display: none">
+    <h1 class="text-3xl text-blue-400">Sorry, you took too long the game's already started!</h1>
+  </div>
   <!--1: Enter name form-->
   <form id="enterNameFormContainer"
         class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
@@ -75,17 +79,26 @@
   const $ = document.querySelector.bind(document);
   const $$ = document.querySelectorAll.bind(document);
 
-  let username = '';
+  let
+    username = '',
+    userInGame = false; // locks student from playing if they haven't submitted name in time
 
   function onSubmitName() {
     username = $('#username').value;
     console.log(username);
     $('#enterNameFormContainer').style.display = 'none';
     $('#waitingForQuestionContainer').style.display = 'block';
+    userInGame = true;
+    socket.emit('student entered', username);
   }
 
   socket.on('question submitted', (data) => {
-    setQuestion(JSON.parse(data));
+    if (userInGame) {
+      setQuestion(JSON.parse(data));
+    } else {
+      $('#enterNameFormContainer').style.display = 'none';
+      $('#userNotInGameContainer').style.display = 'block';
+    }
   });
 
   function setQuestion(data) {
@@ -94,7 +107,7 @@
     if (data.formType === 'multiple choice')
       $('#activeMultipleChoiceContainer').style.display = 'block';
     else if (data.formType === 'matching')
-      $('#activeMatchingContainer').style.display = 'none';
+      $('#activeMatchingContainer').style.display = 'block';
   }
 </script>
 </body>
