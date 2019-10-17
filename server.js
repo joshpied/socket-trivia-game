@@ -24,6 +24,14 @@ io.on('connection', (socket) => {
   socket.on('question submitted', (form) => {
     io.emit('question submitted', form);
   });
+
+  socket.on('mc answer submitted', (userAnswer) => {
+    io.emit('mc answer submitted', userAnswer);
+  });
+
+  socket.on('sorted students', (students) => {
+    io.emit('sorted students', students);
+  });
 });
 
 

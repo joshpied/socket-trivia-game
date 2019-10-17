@@ -6,6 +6,7 @@
     .lds-dual-ring {
       margin-left: 25%;
     }
+
     .lds-dual-ring:after {
       content: " ";
       display: block;
@@ -17,6 +18,7 @@
       border-color: #63b3ed transparent #63b3ed transparent;
       animation: lds-dual-ring 1.2s linear infinite;
     }
+
     @keyframes lds-dual-ring {
       0% {
         transform: rotate(0deg);
@@ -62,14 +64,50 @@
   <div id="waitingForQuestionContainer" style="display: none;">
     <h1 class="text-center text-3xl text-blue-400">Waiting for question...</h1>
     <div class="lds-dual-ring"></div>
+    <div id="leaderboardContainer" style="display: none">
+      <h2 class="text-2xl text-blue-400">Leaderboard:</h2>
+      <ol id="leaderboard"></ol>
+    </div>
   </div>
-  <!--3a: M/C Question-->
-  <div id="activeMultipleChoiceContainer" style="display: none;">
-    <h1 class="text-3xl text-blue-400">Multiple Choice Q:</h1>
-  </div>
-  <!--3b: Matching question-->
-  <div id="activeMatchingContainer" style="display: none;">
-    <h1 class="text-3xl text-blue-400">Matching Q:</h1>
+
+  <div class="flex mb-4">
+    <!--3a: M/C Question-->
+    <div class="w-1/2 h-12" id="activeMultipleChoiceContainer" style="display: none;">
+      <h1 class="text-3xl text-blue-400">Multiple Choice Q:</h1>
+      <div id="questionTitleContainer"></div>
+      <div class="flex items-center justify-between mt-10 pt-5">
+        <button onclick="onSubmitMultipleChoiceAnswer()"
+                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                type="button">
+          Submit Answer
+        </button>
+      </div>
+    </div>
+    <!--3b: Matching question-->
+    <div class="w-1/2 h-12" id="activeMatchingContainer" style="display: none;">
+      <h1 class="text-3xl text-blue-400">Matching Q:</h1>
+    </div>
+    <!--4: Submission-->
+    <div class="w-1/2 h-12" id="submissionContainer" style="display: none;">
+      <div class="flex mb-4">
+        <div class="w-1/2 h-12" id="correctContainer" style="display: none;">
+          <h1 class="text-3xl text-green-600">Correct!</h1>
+        </div>
+        <div class="w-1/2 h-12" id="incorrectContainer" style="display: none;">
+          <h1 class="text-3xl text-red-600">Incorrect :(</h1>
+        </div>
+        <div class="w-1/2 h-12">
+          <h1 class="text-3xl text-blue-600">
+            My Score: <span lass="text-black" id="scoreContainer"></span>
+          </h1>
+        </div>
+      </div>
+    </div>
+
+    <!--Game clock-->
+    <div class="w-1/2 h-12" id="gameClockContainer" style="display: none">
+      <h1 class="text-3xl gameClock"></h1>
+    </div>
   </div>
 </div>
 
@@ -80,7 +118,11 @@
   const $$ = document.querySelectorAll.bind(document);
 
   let
+    submittedGame = {},
+    sortedStudents = [],
     username = '',
+    userScore = 0,
+    hasUserSubmittedAnswer = false,
     userInGame = false; // locks student from playing if they haven't submitted name in time
 
   function onSubmitName() {
@@ -102,12 +144,143 @@
   });
 
   function setQuestion(data) {
-    console.log(data);
+    submittedGame = data;
+    console.log(submittedGame);
     $('#waitingForQuestionContainer').style.display = 'none';
-    if (data.formType === 'multiple choice')
+    if (submittedGame.formType === 'multiple choice') {
       $('#activeMultipleChoiceContainer').style.display = 'block';
-    else if (data.formType === 'matching')
+      setGameClock();
+      $('#questionTitleContainer').innerHTML = `<h2>${submittedGame.game.question}</h2>`;
+      for (let key in submittedGame.game.answers) {
+        if (submittedGame.game.answers.hasOwnProperty(key)) {
+          // console.log(key + " -> " + submittedGame.game.answers[key]);
+          $('#activeMultipleChoiceContainer')
+            .insertAdjacentHTML('beforeend',
+              `<h2 class="answer-option-container"
+                    data-answer="${key}">
+                <span class="answer-text">${key}</span>
+                <input class="answer-checkbox" type="checkbox"/>
+              </h2>`);
+        }
+      }
+    } else if (submittedGame.formType === 'matching') {
       $('#activeMatchingContainer').style.display = 'block';
+    }
+  }
+
+  function setGameClock() {
+    $('#gameClockContainer').style.display = 'block';
+    let secondsRemaining = submittedGame.timeLimit;
+    let timer = setInterval(() => {
+      $('.gameClock').innerText = `${secondsRemaining} seconds remaining`;
+      secondsRemaining -= 1;
+      if (secondsRemaining === -1) {
+        clearInterval(timer);
+        $('.gameClock').innerText += `\n Time Expired`;
+        // user hasn't submitted answer so this keeps track to show they got the question wrong
+        if (!hasUserSubmittedAnswer) {
+          resetQuestionForm(); // can reset question form
+          const userAnswer = {
+            username,
+            score: userScore,
+            isCorrect: false
+          };
+          socket.emit('mc answer submitted', JSON.stringify(userAnswer));
+        }
+        $('#activeMultipleChoiceContainer').style.display = 'none';
+        $('#activeMatchingContainer').style.display = 'none';
+        $('#submissionContainer').style.display = 'none';
+        $('#waitingForQuestionContainer').style.display = 'block';
+        $('#leaderboardContainer').style.display = 'block';
+        $('#leaderboard').innerHTML = getStudentsByScore();
+        $('#gameClockContainer').style.display = 'none';
+      }
+    }, 1000);
+  }
+
+  function onSubmitMultipleChoiceAnswer() {
+    hasUserSubmittedAnswer = true;
+    let
+      answers = [],
+      corrections = [];
+
+    $$('.answer-text').forEach(span => answers.push(span.innerText));
+    $$('.answer-checkbox').forEach(input => corrections.push(input.checked));
+    const reducedAnswers = corrections.reduce(function (result, field, index) {
+      result[answers[index]] = field;
+      return result;
+    }, {});
+    console.log(reducedAnswers);
+    markMultipleChoiceAnswer(reducedAnswers);
+  }
+
+  function markMultipleChoiceAnswer(studentAnswers) {
+    resetQuestionForm(); // can reset question form
+    $('#activeMultipleChoiceContainer').style.display = 'none';
+
+    console.log(isObjEquivalent(submittedGame.game.answers, studentAnswers));
+    const answerCorrect = isObjEquivalent(submittedGame.game.answers, studentAnswers);
+    $('#submissionContainer').style.display = 'block';
+    const userAnswer = {
+      username
+    };
+    if (answerCorrect) {
+      $('#correctContainer').style.display = 'block';
+      userScore += submittedGame.scoreAmount;
+      userAnswer.isCorrect = true;
+    } else {
+      $('#incorrectContainer').style.display = 'block';
+      userAnswer.isCorrect = false;
+    }
+    $('#scoreContainer').innerText = `${userScore} points`;
+    userAnswer.score = userScore;
+    socket.emit('mc answer submitted', JSON.stringify(userAnswer));
+  }
+
+  function resetQuestionForm() {
+    $('#activeMultipleChoiceContainer').innerHTML = `
+      <h1 class="text-3xl text-blue-400">Multiple Choice Q:</h1>
+      <div id="questionTitleContainer"></div>
+      <div class="flex items-center justify-between mt-10 pt-5">
+        <button onclick="onSubmitMultipleChoiceAnswer()"
+                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                type="button">
+          Submit Answer
+        </button>
+      </div>`;
+  }
+
+  function getStudentsByScore() {
+    let formattedStudents = '';
+    sortedStudents.forEach((student, i) => {
+      formattedStudents += `<h2 class="text-2xl">${i + 1}. ${student.username}: ${student.score} points</h2>`
+    });
+    return formattedStudents;
+  }
+
+  // for leaderboard in waiting for question spinner
+  socket.on('sorted students', (students) => {
+    sortedStudents = JSON.parse(students);
+  });
+
+  // Check equality of objects by value
+  // from http://adripofjavascript.com/blog/drips/object-equality-in-javascript.html
+  function isObjEquivalent(a, b) {
+    let aProps = Object.getOwnPropertyNames(a);
+    let bProps = Object.getOwnPropertyNames(b);
+
+    if (aProps.length != bProps.length) {
+      return false;
+    }
+
+    for (let i = 0; i < aProps.length; i++) {
+      let propName = aProps[i];
+
+      if (a[propName] !== b[propName]) {
+        return false;
+      }
+    }
+    return true;
   }
 </script>
 </body>

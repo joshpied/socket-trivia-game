@@ -132,7 +132,33 @@
   </form>
 
   <div id="roundInProgressContainer" style="display: none">
-    <h1 class="text-3xl" id="gameClock"></h1>
+    <div class="flex mb-4">
+      <div class="w-1/2 h-12">
+        <h1 class="text-3xl" id="gameClock"></h1>
+      </div>
+      <div class="w-1/2 h-12" id="statsContainer">
+        <h1 class="text-3xl">Stats</h1>
+        <h2 class="text-2xl text-blue-400">Answers Received: <span class="text-black" id="statAnswersReceived">-</span></h2>
+        <hr/>
+        <h2 class="text-2xl text-blue-400">Correct Answers: <span class="text-black" id="statCorrectAnswers">-</span></h2>
+        <hr/>
+        <h2 class="text-2xl text-blue-400">Percent Correct: <span class="text-black" id="statPercentCorrect">-</span></h2>
+        <hr/>
+        <h2 class="text-2xl text-blue-400">Correct Students: <span class="text-black" id="statCorrectStudents">-</span></h2>
+        <hr/>
+        <h2 class="text-2xl text-blue-400">Incorrect Students: <span class="text-black" id="statIncorrectStudents">-</span></h2>
+        <hr/>
+        <h2 class="text-2xl text-blue-400">Leaderboard:</h2>
+        <ol id="leaderboard"></ol>
+      </div>
+    </div>
+    <div class="w-full mt-10" style="display: none;" id="createNewQuestionContainer">
+      <button onclick="createNewQuestion()"
+              class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+              type="button">
+        Start New Round
+      </button>
+    </div>
   </div>
 </div>
 <script>
@@ -143,7 +169,8 @@
 
   let
     students = [],
-    submittedGame= {};
+    studentScores = [],
+    submittedGame = {};
 
   // Containers for different parts of the game
   const
@@ -251,18 +278,93 @@
     questionForm.style.display = 'none';
     roundInProgress.style.display = 'block';
     let secondsRemaining = submittedGame.timeLimit;
-    $('#gameClock').innerText = secondsRemaining;
-    for (let i = secondsRemaining; i > -1; i--) {
-      setTimeout(() => {
-        $('#gameClock').innerText = secondsRemaining;
-        secondsRemaining--;
-      }, 1000);
-    }
+    let downloadTimer = setInterval(() => {
+      $('#gameClock').innerText = `${secondsRemaining} seconds remaining`;
+      secondsRemaining -= 1;
+      if (secondsRemaining === -1) {
+        clearInterval(downloadTimer);
+        $('#gameClock').innerText += `\n Time Expired`;
+        finishRound();
+      }
+    }, 1000);
+  }
+
+  function finishRound() {
+    $('#createNewQuestionContainer').style.display = 'block';
+  }
+
+  function createNewQuestion() {
+    // reset stats
+    $('#statAnswersReceived').innerHTML = `-`;
+    $('#statCorrectAnswers').innerHTML = `-`;
+    $('#statPercentCorrect').innerHTML = `-`;
+    $('#statCorrectStudents').innerHTML = `-`;
+    $('#statIncorrectStudents').innerHTML = `-`;
+    // reset scores because new scores will come in when users submit answers
+    studentScores = [];
+    // show question form for teacher to add new question
+    questionForm.style.display = 'block';
+    roundInProgress.style.display = 'none';
+  }
+
+  function updateStats() {
+    console.log(studentScores);
+    $('#statAnswersReceived').innerHTML = `${studentScores.length}`;
+    $('#statCorrectAnswers').innerHTML = `${getCorrectAnswers()}`;
+    $('#statPercentCorrect').innerHTML = `${getPercentCorrectAnswers()}%`;
+    $('#statCorrectStudents').innerHTML = `${getCorrectStudents()}`;
+    $('#statIncorrectStudents').innerHTML = `${getIncorrectStudents()}`;
+    // todo:
+    $('#leaderboard').innerHTML = getStudentsByScore();
+  }
+
+  function getCorrectAnswers() {
+    const correctAnswers = studentScores.filter(student => {
+      return student.isCorrect === true
+    });
+    return correctAnswers.length;
+  }
+
+  function getPercentCorrectAnswers() {
+    return Math.floor((getCorrectAnswers() / studentScores.length) * 100);
+  }
+
+  function getCorrectStudents() {
+    const correctStudents = studentScores.filter(student => {
+      return student.isCorrect === true
+    }).map(student => {
+      return student['username']
+    });
+    return correctStudents.join(', ');
+  }
+
+  function getIncorrectStudents() {
+    const incorrectStudents = studentScores.filter(student => {
+      return student.isCorrect === false
+    }).map(student => {
+      return student['username']
+    });
+    return incorrectStudents.join(', ');
+  }
+
+  function getStudentsByScore() {
+    const sortedStudents = studentScores.sort((a, b) => (a.score < b.score) ? 1 : -1);
+    let formattedStudents = '';
+    sortedStudents.forEach((student, i) => {
+      formattedStudents += `<h2 class="text-2xl">${i + 1}. ${student.username}: ${student.score} points</h2>`
+    });
+    socket.emit('sorted students', JSON.stringify(sortedStudents));
+    return formattedStudents;
   }
 
   socket.on('student entered', (studentUsername) => {
     students.push({name: studentUsername, score: 0});
     console.log(students);
+  });
+
+  socket.on('mc answer submitted', (userAnswer) => {
+    studentScores.push(JSON.parse(userAnswer));
+    updateStats();
   });
 </script>
 </body>
