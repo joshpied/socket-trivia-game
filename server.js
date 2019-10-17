@@ -29,6 +29,10 @@ io.on('connection', (socket) => {
     io.emit('mc answer submitted', userAnswer);
   });
 
+  socket.on('matching answer submitted', (userAnswer) => {
+    io.emit('matching answer submitted', userAnswer);
+  });
+
   socket.on('sorted students', (students) => {
     io.emit('sorted students', students);
   });

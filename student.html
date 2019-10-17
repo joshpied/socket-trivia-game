@@ -86,6 +86,14 @@
     <!--3b: Matching question-->
     <div class="w-1/2 h-12" id="activeMatchingContainer" style="display: none;">
       <h1 class="text-3xl text-blue-400">Matching Q:</h1>
+      <h2 id="questionMatchingTitleContainer">Match each answer to its corresponding item</h2>
+      <div class="flex items-center justify-between mt-10 pt-5">
+        <button onclick="onSubmitMatchingAnswer()"
+                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                type="button">
+          Submit Answers
+        </button>
+      </div>
     </div>
     <!--4: Submission-->
     <div class="w-1/2 h-12" id="submissionContainer" style="display: none;">
@@ -147,6 +155,7 @@
     submittedGame = data;
     console.log(submittedGame);
     $('#waitingForQuestionContainer').style.display = 'none';
+    ///////// SET MC QUESTION /////////////////////////
     if (submittedGame.formType === 'multiple choice') {
       $('#activeMultipleChoiceContainer').style.display = 'block';
       setGameClock();
@@ -163,8 +172,25 @@
               </h2>`);
         }
       }
+    ///////// SET MATCHING QUESTION ////////////////////
     } else if (submittedGame.formType === 'matching') {
       $('#activeMatchingContainer').style.display = 'block';
+      setGameClock();
+      // set select options with answers
+      const shuffledAnswers = submittedGame.game.answers.sort(() => Math.random() - 0.5);
+      let options = ``;
+      shuffledAnswers.forEach((answer, i) => {
+        options += `<option value="${answer}">${answer}</option>`;
+      });
+
+      submittedGame.game.questions.forEach((question, i) => {
+        $('#activeMatchingContainer')
+          .insertAdjacentHTML('beforeend',
+            `<h2 class="matching-qa-container mt-5">
+                <span class="matching-question">${i + 1}. ${question}</span>
+                <select class="matching-answer">${options}</select>
+            </h2>`);
+      });
     }
   }
 
@@ -185,11 +211,16 @@
             score: userScore,
             isCorrect: false
           };
-          socket.emit('mc answer submitted', JSON.stringify(userAnswer));
+          // if (submittedGame.formType === 'multiple choice')
+          //   socket.emit('mc answer submitted', JSON.stringify(userAnswer));
+          // else if (submittedGame.formType === 'matching')
+          //   socket.emit('matching answer submitted', JSON.stringify(userAnswer));
         }
         $('#activeMultipleChoiceContainer').style.display = 'none';
         $('#activeMatchingContainer').style.display = 'none';
         $('#submissionContainer').style.display = 'none';
+        $('#correctContainer').style.display = 'none';
+        $('#incorrectContainer').style.display = 'none';
         $('#waitingForQuestionContainer').style.display = 'block';
         $('#leaderboardContainer').style.display = 'block';
         $('#leaderboard').innerHTML = getStudentsByScore();
@@ -198,6 +229,7 @@
     }, 1000);
   }
 
+  ///////////////////////// MC ////////////////////////
   function onSubmitMultipleChoiceAnswer() {
     hasUserSubmittedAnswer = true;
     let
@@ -237,7 +269,48 @@
     socket.emit('mc answer submitted', JSON.stringify(userAnswer));
   }
 
+  ///////////////////////// MATCHING //////////////////////
+  function onSubmitMatchingAnswer() {
+    hasUserSubmittedAnswer = true;
+    let
+      questions = [],
+      answers = [];
+
+    $$('.matching-question').forEach(span => questions.push(span.innerText));
+    $$('.matching-answer').forEach(option => answers.push(option.value));
+    // console.log(questions);
+    console.log(answers);
+    markMatchingAnswers(answers);
+  }
+
+  function markMatchingAnswers(answers) {
+    resetQuestionForm(); // can reset question form
+    $('#activeMatchingContainer').style.display = 'none';
+    $('#submissionContainer').style.display = 'block';
+    const userAnswer = {
+      username
+    };
+
+    console.log(JSON.stringify(answers));
+    console.log(JSON.stringify(submittedGame.game.answers));
+    if (JSON.stringify(answers) === JSON.stringify(submittedGame.game.answers)) {
+      console.log('right');
+      $('#correctContainer').style.display = 'block';
+      userScore += submittedGame.scoreAmount;
+      userAnswer.isCorrect = true;
+    } else {
+      console.log('wrong');
+      $('#incorrectContainer').style.display = 'block';
+      userAnswer.isCorrect = false;
+    }
+    $('#scoreContainer').innerText = `${userScore} points`;
+    userAnswer.score = userScore;
+    socket.emit('matching answer submitted', JSON.stringify(userAnswer));
+  }
+
   function resetQuestionForm() {
+    hasUserSubmittedAnswer = false;
+    //reset mc form
     $('#activeMultipleChoiceContainer').innerHTML = `
       <h1 class="text-3xl text-blue-400">Multiple Choice Q:</h1>
       <div id="questionTitleContainer"></div>
@@ -248,6 +321,18 @@
           Submit Answer
         </button>
       </div>`;
+    // reset matching form
+    $('#activeMatchingContainer').innerHTML = `
+      <h1 class="text-3xl text-blue-400">Matching Q:</h1>
+      <h2 id="questionMatchingTitleContainer">Match each answer to its corresponding item</h2>
+      <div class="flex items-center justify-between mt-10 pt-5">
+        <button onclick="onSubmitMatchingAnswer()"
+                class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                type="button">
+          Submit Answers
+        </button>
+      </div>
+    `;
   }
 
   function getStudentsByScore() {

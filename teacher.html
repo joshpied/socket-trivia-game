@@ -270,6 +270,8 @@
     formType = 'multiple choice';
     scoreAmount.value = null;
     $('#question').value = '';
+    $('#multipleChoiceSelected').style.display = 'block';
+    $('#matchingSelected').style.display = 'none';
   }
 
   function startRound(data) {
@@ -363,6 +365,11 @@
   });
 
   socket.on('mc answer submitted', (userAnswer) => {
+    studentScores.push(JSON.parse(userAnswer));
+    updateStats();
+  });
+
+  socket.on('matching answer submitted', (userAnswer) => {
     studentScores.push(JSON.parse(userAnswer));
     updateStats();
   });
