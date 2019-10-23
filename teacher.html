@@ -1,3 +1,4 @@
+<!-- I, Joshua Piedimonte, student number 000746786, certify that all code submitted is my own work; that I have not copied it from any other source, I also certify that I have not allowed my work to be copied by others. -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -51,11 +52,13 @@
     <h4 class="text-gray-700 text-sm font-bold mb-2">Question Type</h4>
     <div class="flex items-center justify-between">
       <label class="inline">
-        <input type="radio" name="questionType" onclick="handleQuestionType(this);" value="multiple_choice" checked>
+        <input type="radio" id="mcRadio" name="questionType" onclick="handleQuestionType(this);" value="multiple_choice"
+               checked>
         Multiple Choice
       </label>
       <label class="inline">
-        <input type="radio" name="questionType" onclick="handleQuestionType(this);" value="matching"> Matching
+        <input type="radio" id="matchingRadio" name="questionType" onclick="handleQuestionType(this);" value="matching">
+        Matching
       </label>
     </div>
 
@@ -69,10 +72,6 @@
         <textarea id="question" class="w-full rounded shadow-inner p-4 border-0 focus:outline-none focus:shadow-outline"
                   placeholder="Which of these items are considered fruit?" rows="6"></textarea>
       </div>
-      <!--      <div class="mb-4">-->
-      <!--        <label for="hasMultipleRightAnswers"> Multiple Right Answers?</label>-->
-      <!--        <input type="checkbox" name="hasMultipleRightAnswers" id="hasMultipleRightAnswers" value="multipleRightAnswers">-->
-      <!--      </div>-->
       <!--ANSWERS-->
       <div class="flex flex-wrap -mx-3 mb-6">
         <div class="w-full md:w-1/2 px-3" id="answerInputColumn">
@@ -138,15 +137,20 @@
       </div>
       <div class="w-1/2 h-12" id="statsContainer">
         <h1 class="text-3xl">Stats</h1>
-        <h2 class="text-2xl text-blue-400">Answers Received: <span class="text-black" id="statAnswersReceived">-</span></h2>
+        <h2 class="text-2xl text-blue-400">Answers Received: <span class="text-black" id="statAnswersReceived">-</span>
+        </h2>
         <hr/>
-        <h2 class="text-2xl text-blue-400">Correct Answers: <span class="text-black" id="statCorrectAnswers">-</span></h2>
+        <h2 class="text-2xl text-blue-400">Correct Answers: <span class="text-black" id="statCorrectAnswers">-</span>
+        </h2>
         <hr/>
-        <h2 class="text-2xl text-blue-400">Percent Correct: <span class="text-black" id="statPercentCorrect">-</span></h2>
+        <h2 class="text-2xl text-blue-400">Percent Correct: <span class="text-black" id="statPercentCorrect">-</span>
+        </h2>
         <hr/>
-        <h2 class="text-2xl text-blue-400">Correct Students: <span class="text-black" id="statCorrectStudents">-</span></h2>
+        <h2 class="text-2xl text-blue-400">Correct Students: <span class="text-black" id="statCorrectStudents">-</span>
+        </h2>
         <hr/>
-        <h2 class="text-2xl text-blue-400">Incorrect Students: <span class="text-black" id="statIncorrectStudents">-</span></h2>
+        <h2 class="text-2xl text-blue-400">Incorrect Students: <span class="text-black"
+                                                                     id="statIncorrectStudents">-</span></h2>
         <hr/>
         <h2 class="text-2xl text-blue-400">Leaderboard:</h2>
         <ol id="leaderboard"></ol>
@@ -181,7 +185,7 @@
   const slider = $('#timelimit');
   const scoreAmount = $('#scoreAmount');
   let formType = 'multiple choice';
-
+  // for time slider
   const sliderOutput = $('#sliderOutput');
   sliderOutput.innerHTML = slider.value;
   slider.oninput = function () {
@@ -192,6 +196,10 @@
     multipleChoiceForm = $('#multipleChoiceSelected'),
     matchingForm = $('#matchingSelected');
 
+  /**
+   * Display different form depending on question type
+   * @param e
+   */
   function handleQuestionType(e) {
     console.log(e.value);
     if (e.value === 'matching') {
@@ -205,6 +213,9 @@
     }
   }
 
+  /**
+   * Appends another answer input to form
+   */
   function addAnswer() {
     const answerInput = `<br/><input class="answer-input appearance-none block w-full bg-gray-200 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                           type="text" placeholder="Apple">`;
@@ -213,6 +224,9 @@
     $('#answerCheckboxColumn').insertAdjacentHTML('beforeend', answerCheckbox);
   }
 
+  /**
+   * Appends another matching input to form
+   */
   function addMatchingQuestion() {
     const questionAnswerInput = `<div class="md:flex mb-4">
                                     <input class="matching-question-input bg-gray-200 text-gray-700 border border-gray-200 rounded py-3 px-4 mr-5 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
@@ -229,6 +243,8 @@
       answers = [],
       corrections = [],
       questions = [];
+    // MC form returns an object with the answer text as its key and if its the correct answer as the value
+    // eg. {red: true, blue: false}
     if (formType === 'multiple choice') {
       $$('.answer-input').forEach(input => answers.push(input.value));
       $$('.answer-checkbox').forEach(input => corrections.push(input.checked));
@@ -237,12 +253,14 @@
         return result;
       }, {});
       game = {question: $('#question').value, answers: reducedAnswers};
+      // Matching form returns array array of questions as strings and array of answers as strings
     } else if (formType === 'matching') {
       $$('.matching-question-input').forEach(input => questions.push(input.value));
       $$('.matching-answer-input').forEach(input => answers.push(input.value));
       game = {questions, answers};
     }
 
+    // entire object to be sent to server and emitted to students
     const form = {
       timeLimit: parseInt(slider.value),
       scoreAmount: parseInt(scoreAmount.value),
@@ -251,12 +269,14 @@
     };
     socket.emit('question submitted', JSON.stringify(form));
     socket.on('question submitted', (data) => {
-      // console.log(data);
       startRound(JSON.parse(data));
     });
     resetForm();
   }
 
+  /**
+   * Set both forms to their default values
+   */
   function resetForm() {
     $('#answerInputColumn').innerHTML = `<input class="answer-input appearance-none block w-full bg-gray-200 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                           type="text" placeholder="Apple">`;
@@ -267,24 +287,31 @@
                                             <input class="matching-answer-input bg-gray-200 text-gray-700 border border-gray-200 rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white focus:border-gray-500"
                                                    type="text" placeholder="Red">
                                           </div>`;
+    // Ensures beginning on MC form not matching
     formType = 'multiple choice';
+    handleQuestionType({value: 'multiple_choice'});
+    $('#mcRadio').checked = true;
+    $('#matchingRadio').checked = false;
     scoreAmount.value = null;
     $('#question').value = '';
     $('#multipleChoiceSelected').style.display = 'block';
     $('#matchingSelected').style.display = 'none';
   }
 
+  /**
+   * Beings round after form submitted and starts game clock
+   */
   function startRound(data) {
     console.log(data);
     submittedGame = data;
     questionForm.style.display = 'none';
     roundInProgress.style.display = 'block';
     let secondsRemaining = submittedGame.timeLimit;
-    let downloadTimer = setInterval(() => {
+    let clock = setInterval(() => {
       $('#gameClock').innerText = `${secondsRemaining} seconds remaining`;
       secondsRemaining -= 1;
       if (secondsRemaining === -1) {
-        clearInterval(downloadTimer);
+        clearInterval(clock);
         $('#gameClock').innerText += `\n Time Expired`;
         finishRound();
       }
@@ -295,6 +322,9 @@
     $('#createNewQuestionContainer').style.display = 'block';
   }
 
+  /**
+   * Triggered after a round is finished and teacher make new question
+   */
   function createNewQuestion() {
     // reset stats
     $('#statAnswersReceived').innerHTML = `-`;
@@ -308,6 +338,8 @@
     questionForm.style.display = 'block';
     roundInProgress.style.display = 'none';
   }
+
+  // Various functions for the statistics displayed back to the teacher:
 
   function updateStats() {
     console.log(studentScores);

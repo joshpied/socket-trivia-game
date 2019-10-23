@@ -1,3 +1,4 @@
+<!-- I, Joshua Piedimonte, student number 000746786, certify that all code submitted is my own work; that I have not copied it from any other source, I also certify that I have not allowed my work to be copied by others. -->
 <!doctype html>
 <html lang="en">
 <head>
@@ -126,13 +127,18 @@
   const $$ = document.querySelectorAll.bind(document);
 
   let
-    submittedGame = {},
-    sortedStudents = [],
-    username = '',
-    userScore = 0,
+    submittedGame = {}, // contents of game sent by teacher
+    sortedStudents = [], // list of students for leaderboard
+    username = '', // users inputted name
+    userScore = 0, // keeps track of students own score and sent back to server after every question
     hasUserSubmittedAnswer = false,
     userInGame = false; // locks student from playing if they haven't submitted name in time
 
+  /**
+   * Sets students name / allows in game
+   * displays waiting for question information
+   * emits new student to server
+   */
   function onSubmitName() {
     username = $('#username').value;
     console.log(username);
@@ -142,6 +148,10 @@
     socket.emit('student entered', username);
   }
 
+  /**
+   * When the user is successfully in game and teacher has submitted a question,
+   * they will be allowed to answer, otherwise informed they are not in the game.
+   */
   socket.on('question submitted', (data) => {
     if (userInGame) {
       setQuestion(JSON.parse(data));
@@ -151,8 +161,12 @@
     }
   });
 
+  /**
+   * Called when a question has been submitted by teacher and begins a round of the game
+   * @param data is the game details set by the teacher
+   */
   function setQuestion(data) {
-    submittedGame = data;
+    submittedGame = data; // set globally available game
     console.log(submittedGame);
     $('#waitingForQuestionContainer').style.display = 'none';
     ///////// SET MC QUESTION /////////////////////////
@@ -172,12 +186,12 @@
               </h2>`);
         }
       }
-    ///////// SET MATCHING QUESTION ////////////////////
+      ///////// SET MATCHING QUESTION ////////////////////
     } else if (submittedGame.formType === 'matching') {
       $('#activeMatchingContainer').style.display = 'block';
       setGameClock();
-      // set select options with answers
-      const shuffledAnswers = submittedGame.game.answers.sort(() => Math.random() - 0.5);
+      let shuffledAnswers = [...submittedGame.game.answers]; // set select options with answers
+      shuffledAnswers.sort(() => Math.random() - 0.5);  // randomizes the options
       let options = ``;
       shuffledAnswers.forEach((answer, i) => {
         options += `<option value="${answer}">${answer}</option>`;
@@ -194,6 +208,9 @@
     }
   }
 
+  /**
+   * Countdown to end of round
+   */
   function setGameClock() {
     $('#gameClockContainer').style.display = 'block';
     let secondsRemaining = submittedGame.timeLimit;
@@ -211,11 +228,9 @@
             score: userScore,
             isCorrect: false
           };
-          // if (submittedGame.formType === 'multiple choice')
-          //   socket.emit('mc answer submitted', JSON.stringify(userAnswer));
-          // else if (submittedGame.formType === 'matching')
-          //   socket.emit('matching answer submitted', JSON.stringify(userAnswer));
         }
+        // reset the various container when time is up
+        // only waiting for question and leaderboard will be shown
         $('#activeMultipleChoiceContainer').style.display = 'none';
         $('#activeMatchingContainer').style.display = 'none';
         $('#submissionContainer').style.display = 'none';
@@ -230,14 +245,19 @@
   }
 
   ///////////////////////// MC ////////////////////////
+  /**
+   * Submission for multiple choice question
+   */
   function onSubmitMultipleChoiceAnswer() {
     hasUserSubmittedAnswer = true;
     let
       answers = [],
       corrections = [];
 
+    // get values of the answer inputs and checkboxes
     $$('.answer-text').forEach(span => answers.push(span.innerText));
     $$('.answer-checkbox').forEach(input => corrections.push(input.checked));
+    // merge them to one object to be compared with the correct answers
     const reducedAnswers = corrections.reduce(function (result, field, index) {
       result[answers[index]] = field;
       return result;
@@ -246,16 +266,20 @@
     markMultipleChoiceAnswer(reducedAnswers);
   }
 
+  /**
+   * Compares user submitted answers to teacher answers
+   */
   function markMultipleChoiceAnswer(studentAnswers) {
-    resetQuestionForm(); // can reset question form
+    resetQuestionForm(); // can reset question form now that the student answers have been captured already
     $('#activeMultipleChoiceContainer').style.display = 'none';
-
-    console.log(isObjEquivalent(submittedGame.game.answers, studentAnswers));
+    // check answers validity using utility function
     const answerCorrect = isObjEquivalent(submittedGame.game.answers, studentAnswers);
     $('#submissionContainer').style.display = 'block';
+    // object to send back to server
     const userAnswer = {
       username
     };
+    // display if user was correct or not
     if (answerCorrect) {
       $('#correctContainer').style.display = 'block';
       userScore += submittedGame.scoreAmount;
@@ -264,9 +288,9 @@
       $('#incorrectContainer').style.display = 'block';
       userAnswer.isCorrect = false;
     }
-    $('#scoreContainer').innerText = `${userScore} points`;
+    $('#scoreContainer').innerText = `${userScore} points`; // display amount of points student has
     userAnswer.score = userScore;
-    socket.emit('mc answer submitted', JSON.stringify(userAnswer));
+    socket.emit('mc answer submitted', JSON.stringify(userAnswer)); // send results back to server
   }
 
   ///////////////////////// MATCHING //////////////////////
@@ -275,41 +299,43 @@
     let
       questions = [],
       answers = [];
-
+    // get matching pairs in arrays from text and corresponding selects
     $$('.matching-question').forEach(span => questions.push(span.innerText));
     $$('.matching-answer').forEach(option => answers.push(option.value));
-    // console.log(questions);
     console.log(answers);
     markMatchingAnswers(answers);
   }
 
+  /**
+   * Compares user answers to teacher answers
+   */
   function markMatchingAnswers(answers) {
-    resetQuestionForm(); // can reset question form
+    resetQuestionForm(); // can reset question form now
     $('#activeMatchingContainer').style.display = 'none';
     $('#submissionContainer').style.display = 'block';
+    // object to send back to server
     const userAnswer = {
       username
     };
 
     console.log(JSON.stringify(answers));
     console.log(JSON.stringify(submittedGame.game.answers));
+    // if the stringified versinos of the two arrays are the same the user is correct
     if (JSON.stringify(answers) === JSON.stringify(submittedGame.game.answers)) {
-      console.log('right');
       $('#correctContainer').style.display = 'block';
-      userScore += submittedGame.scoreAmount;
+      userScore += submittedGame.scoreAmount; // user score tallied up
       userAnswer.isCorrect = true;
     } else {
-      console.log('wrong');
       $('#incorrectContainer').style.display = 'block';
       userAnswer.isCorrect = false;
     }
     $('#scoreContainer').innerText = `${userScore} points`;
-    userAnswer.score = userScore;
-    socket.emit('matching answer submitted', JSON.stringify(userAnswer));
+    userAnswer.score = userScore; // set user score
+    socket.emit('matching answer submitted', JSON.stringify(userAnswer)); // send results back to server
   }
 
   function resetQuestionForm() {
-    hasUserSubmittedAnswer = false;
+    hasUserSubmittedAnswer = false; // set back to false since this will be set to true provided a user sends an answer back in future questions
     //reset mc form
     $('#activeMultipleChoiceContainer').innerHTML = `
       <h1 class="text-3xl text-blue-400">Multiple Choice Q:</h1>
@@ -335,6 +361,10 @@
     `;
   }
 
+  /**
+   * Displays leaderboard of students by score
+   * @returns {string}
+   */
   function getStudentsByScore() {
     let formattedStudents = '';
     sortedStudents.forEach((student, i) => {
